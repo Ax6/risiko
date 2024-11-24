@@ -2,6 +2,9 @@ package risk
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
+	"sync"
 	"testing"
 )
 
@@ -17,21 +20,33 @@ func createTestSingleSidedDicesGen(number int) func(int) (Dices, error) {
 	return gen
 }
 
-func TestWar(t *testing.T) {
+// deterministic random dices gen
+func testDeterministicDicesGen(count int) (Dices, error) {
+	if count < 0 {
+		return nil, fmt.Errorf("Dices cannot be a negative number")
+	}
+	return &fairDices{nDices: count, random: rand.New(rand.NewSource(1))}, nil
+}
+
+func TestWarEssentials(t *testing.T) {
 	testCases := []struct {
 		name     string
-		attacker BattleStrategy
-		defender BattleStrategy
+		attacker WarStrategy
+		defender WarStrategy
 		state    WarState
 		want     WarState
 	}{
 		{
 			name: "attacker cheater",
-			attacker: &maxAttackers{
-				genDices: createTestSingleSidedDicesGen(6),
+			attacker: func() BattleStrategy {
+				return &maxAttackers{
+					genDices: createTestSingleSidedDicesGen(6),
+				}
 			},
-			defender: &maxAttackers{
-				genDices: createTestSingleSidedDicesGen(3),
+			defender: func() BattleStrategy {
+				return &maxAttackers{
+					genDices: createTestSingleSidedDicesGen(3),
+				}
 			},
 			state: WarState{
 				AttackerUnits: 10,
@@ -44,11 +59,15 @@ func TestWar(t *testing.T) {
 		},
 		{
 			name: "defender cheater",
-			attacker: &maxAttackers{
-				genDices: createTestSingleSidedDicesGen(1),
+			attacker: func() BattleStrategy {
+				return &maxAttackers{
+					genDices: createTestSingleSidedDicesGen(1),
+				}
 			},
-			defender: &maxDefenders{
-				genDices: createTestSingleSidedDicesGen(1),
+			defender: func() BattleStrategy {
+				return &maxDefenders{
+					genDices: createTestSingleSidedDicesGen(1),
+				}
 			},
 			state: WarState{
 				AttackerUnits: 10,
@@ -78,21 +97,78 @@ func TestWar(t *testing.T) {
 	}
 }
 
+func TestWarResults(t *testing.T) {
+	maxAttackers := 15
+	maxDefenders := 15
+	nWars := 500
+	type TestCase = struct {
+		name     string
+		attacker WarStrategy
+		defender WarStrategy
+		state    WarState
+	}
+	testCases := []TestCase{}
+	for a := 1; a <= maxAttackers; a++ {
+		for d := 1; d <= maxDefenders; d++ {
+			for i := 0; i < nWars; i++ {
+				testCases = append(testCases, TestCase{
+					name:     fmt.Sprintf("war a%d d%d run%d", a, d, i),
+					attacker: NewMaxAttackersStrategy(testDeterministicDicesGen),
+					defender: NewMaxDefendersStrategy(testDeterministicDicesGen),
+					state: WarState{
+						AttackerUnits: a,
+						DefenderUnits: d,
+					},
+				})
+			}
+		}
+	}
+
+	var wg sync.WaitGroup
+	for _, tc := range testCases {
+		wg.Add(1)
+		go func(tc TestCase) {
+			defer wg.Done()
+			t.Run(tc.name, func(t *testing.T) {
+				got, err := War(tc.state, tc.attacker, tc.defender)
+				if err != nil {
+					t.Errorf("Unexpected error")
+				}
+				if got.AttackerUnits < 0 {
+					t.Errorf("Unexpected final state. Want more than 0 but got %d attackers", got.AttackerUnits)
+				}
+				if got.DefenderUnits < 0 {
+					t.Errorf("Unexpected final state. Want more than 0 but got %d defenders", got.DefenderUnits)
+				}
+				if got.AttackerUnits > tc.state.AttackerUnits {
+					t.Errorf("Unexpected final state. Want less than %d but got %d attackers", tc.state.AttackerUnits, got.AttackerUnits)
+				}
+				if got.DefenderUnits > tc.state.DefenderUnits {
+					t.Errorf("Unexpected final state. Want less than %d but got %d defenders", tc.state.DefenderUnits, got.DefenderUnits)
+				}
+			})
+		}(tc)
+	}
+
+	wg.Wait()
+}
+
 func TestSimulate(t *testing.T) {
+	rand.New(rand.NewSource(1))
 	ctx := context.Background()
 	testCases := []struct {
 		name        string
-		attacker    BattleStrategy
-		defender    BattleStrategy
+		attacker    WarStrategy
+		defender    WarStrategy
 		nUnitsSweep int
 		nRuns       int
 	}{
 		{
 			name:        "normal cheater",
-			attacker:    NewMaxAttackersStrategy(FairDicesGen),
-			defender:    NewMaxDefendersStrategy(FairDicesGen),
-			nUnitsSweep: 3,
-			nRuns:       5,
+			attacker:    NewMaxAttackersStrategy(createTestSingleSidedDicesGen(6)),
+			defender:    NewMaxDefendersStrategy(createTestSingleSidedDicesGen(6)),
+			nUnitsSweep: 20,
+			nRuns:       10000,
 		},
 	}
 
@@ -111,6 +187,12 @@ func TestSimulate(t *testing.T) {
 						t.Errorf("unexpected empty object for %d defenders", d)
 					} else if got.NRuns != tc.nRuns {
 						t.Errorf("unexpected n of runs for %d attackers and %d defenders. Got %d and wanted %d", a, d, got.NRuns, tc.nRuns)
+					}
+					if result[a][d].NAttackerWon < 0 {
+						t.Errorf("impossible that attackers won is less than 0, but got %d", result[a][d].NAttackerWon)
+					}
+					if result[a][d].TotalAttackerUnitsLeft < 0 {
+						t.Errorf("impossible that total attacker units left are less than 0, but got %d", result[a][d].TotalAttackerUnitsLeft)
 					}
 				}
 			}

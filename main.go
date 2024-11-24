@@ -70,6 +70,12 @@ func generateCSVTables(simResult risk.SimulationSweep, unitsSweep int) {
 			victoryRow = append(victoryRow, fmt.Sprintf("%.6f", victoryPercentage))
 
 			// Calculate the percentage of attackers left
+			if result.TotalAttackerUnitsLeft < 0 {
+				panic("WHAT")
+			}
+			if result.NAttackerWon < 0 {
+				panic("IMpossible")
+			}
 			attackersLeftPercentage := float64(result.TotalAttackerUnitsLeft) / float64(result.NAttackerWon)
 			// Add the result as a string to the attackers left table row
 			attackersLeftRow = append(attackersLeftRow, fmt.Sprintf("%.6f", attackersLeftPercentage))

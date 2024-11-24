@@ -12,21 +12,24 @@ type Dices interface {
 }
 
 type fairDices struct {
+	random *rand.Rand
 	nDices int
 }
+
+type DicesGenerator = func(int) (Dices, error)
 
 func FairDicesGen(count int) (Dices, error) {
 	if count < 0 {
 		return nil, fmt.Errorf("Dices cannot be a negative number")
 	}
-	return &fairDices{nDices: count}, nil
+	return &fairDices{nDices: count, random: rand.New(rand.NewSource(int64(rand.Int())))}, nil
 }
 
 // Returns Count() dices throws sorted in descending order
 func (f *fairDices) Roll() []int {
 	res := []int{}
 	for i := 0; i < f.nDices; i++ {
-		res = append(res, rand.Intn(6)+1)
+		res = append(res, f.random.Intn(6)+1)
 	}
 	slices.Sort(res)
 	slices.Reverse(res)

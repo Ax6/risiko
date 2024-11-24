@@ -9,20 +9,12 @@ type BattleStrategy interface {
 	GetDices() (Dices, error)
 }
 
-func NewMaxAttackersStrategy(gen func(int) (Dices, error)) BattleStrategy {
-	return &maxAttackers{genDices: gen}
-}
-
-func NewMaxDefendersStrategy(gen func(int) (Dices, error)) BattleStrategy {
-	return &maxDefenders{genDices: gen}
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 // Max attackers -> Always attack with maximum units, regardless of war state
 ///////////////////////////////////////////////////////////////////////////////
 
 type maxAttackers struct {
-	genDices func(int) (Dices, error)
+	genDices DicesGenerator
 	state    WarState
 }
 
@@ -57,7 +49,7 @@ func getMaxAttackers(units int) (int, error) {
 ///////////////////////////////////////////////////////////////////////////////
 
 type maxDefenders struct {
-	genDices func(int) (Dices, error)
+	genDices DicesGenerator
 	state    WarState
 }
 

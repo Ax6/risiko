@@ -19,17 +19,33 @@ type WarState struct {
 	DefenderUnits int
 }
 
-func War(state WarState, attacker BattleStrategy, defender BattleStrategy) (WarState, error) {
-	for state.AttackerUnits > 0 && state.DefenderUnits > 0 {
-		attacker.UpdateState(state)
-		defender.UpdateState(state)
+type WarStrategy = func() BattleStrategy
 
-		roundAttackers, err := attacker.GetDices()
+func NewMaxAttackersStrategy(gen DicesGenerator) WarStrategy {
+	return func() BattleStrategy {
+		return &maxAttackers{genDices: gen}
+	}
+}
+
+func NewMaxDefendersStrategy(gen DicesGenerator) WarStrategy {
+	return func() BattleStrategy {
+		return &maxDefenders{genDices: gen}
+	}
+}
+
+func War(state WarState, attacker WarStrategy, defender WarStrategy) (WarState, error) {
+	att := attacker()
+	def := defender()
+	for state.AttackerUnits > 0 && state.DefenderUnits > 0 {
+		att.UpdateState(state)
+		def.UpdateState(state)
+
+		roundAttackers, err := att.GetDices()
 		if err != nil {
 			return WarState{}, fmt.Errorf("oh no %v", err)
 		}
 
-		roundDefenders, err := defender.GetDices()
+		roundDefenders, err := def.GetDices()
 		if err != nil {
 			return WarState{}, fmt.Errorf("oh no %v", err)
 		}
@@ -43,10 +59,10 @@ func War(state WarState, attacker BattleStrategy, defender BattleStrategy) (WarS
 	return state, nil
 }
 
-func Simulate(ctx context.Context, nRuns int, nUnitsSweep int, attackerStrategy BattleStrategy, defenderStrategy BattleStrategy) (SimulationSweep, error) {
+func Simulate(ctx context.Context, nRuns int, nUnitsSweep int, attackerStrategy WarStrategy, defenderStrategy WarStrategy) (SimulationSweep, error) {
 	simsCount := 0
 	simResult := SimulationSweep{}
-	ch := make(chan []WarState)
+	ch := make(chan []*WarState)
 	chErr := make(chan error)
 	defer close(ch)
 	defer close(chErr)
@@ -54,17 +70,20 @@ func Simulate(ctx context.Context, nRuns int, nUnitsSweep int, attackerStrategy 
 	go func() {
 		for nDefenders := 1; nDefenders <= nUnitsSweep; nDefenders++ {
 			for nAttackers := 1; nAttackers <= nUnitsSweep; nAttackers++ {
-				go func(nAttackers int, nDefenders int) {
+				go func(nAtt int, nDef int) {
 					for i := 0; i < nRuns; i++ {
 						initialState := WarState{
-							AttackerUnits: nAttackers,
-							DefenderUnits: nDefenders,
+							AttackerUnits: nAtt,
+							DefenderUnits: nDef,
 						}
 						finalState, err := War(initialState, attackerStrategy, defenderStrategy)
+						if finalState.AttackerUnits < 0 {
+							fmt.Printf("WOWOWOWO %v", finalState)
+						}
 						if err != nil {
 							chErr <- err
 						} else {
-							ch <- []WarState{initialState, finalState}
+							ch <- []*WarState{&initialState, &finalState}
 						}
 					}
 				}(nAttackers, nDefenders)
@@ -91,7 +110,11 @@ func Simulate(ctx context.Context, nRuns int, nUnitsSweep int, attackerStrategy 
 			if sas, ok := simResult[initialState.AttackerUnits]; !ok {
 				simResult[initialState.AttackerUnits] = map[int]SimulationResult{}
 				if _, ok := sas[initialState.DefenderUnits]; !ok {
-					simResult[initialState.AttackerUnits][initialState.DefenderUnits] = SimulationResult{}
+					simResult[initialState.AttackerUnits][initialState.DefenderUnits] = SimulationResult{
+						NRuns:                  0,
+						NAttackerWon:           0,
+						TotalAttackerUnitsLeft: 0,
+					}
 				}
 			}
 
@@ -100,6 +123,10 @@ func Simulate(ctx context.Context, nRuns int, nUnitsSweep int, attackerStrategy 
 				NRuns:                  simBatch.NRuns + 1,
 				NAttackerWon:           simBatch.NAttackerWon + attackerWon,
 				TotalAttackerUnitsLeft: simBatch.TotalAttackerUnitsLeft + finalState.AttackerUnits,
+			}
+
+			if finalState.AttackerUnits < 0 {
+				fmt.Printf("Whats going on %v -> %v", initialState, finalState)
 			}
 
 			simsCount++
