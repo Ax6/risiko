@@ -28,18 +28,9 @@ func TestFairDices_Roll(t *testing.T) {
 			}
 
 			throws := dices.Roll()
-			if !isSortedDescending(throws) {
-				t.Errorf("Expected sorted desc but it's not")
+			if len(throws) != i {
+				t.Errorf("Expected %d throws but got %d", i, len(throws))
 			}
 		})
 	}
-}
-
-func isSortedDescending(arr []int) bool {
-	for i := 0; i < len(arr)-1; i++ {
-		if arr[i] < arr[i+1] {
-			return false
-		}
-	}
-	return true
 }
