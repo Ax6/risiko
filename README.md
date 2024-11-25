@@ -1,6 +1,6 @@
 # RisiKo!
 
-This is a little RisiKo game that simulates battles between two players.
+This is a little RisiKo game that simulates engages between two players.
 
 It's inspired by this reddit post https://www.reddit.com/gallery/1gyrpx4 which looks at Risk (different rules, I didn't know).
 

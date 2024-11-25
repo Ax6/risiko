@@ -1,107 +1,140 @@
+// Rules of risk:
 package risiko
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
-const BATTLE_RULE_MAX_UNITS = 3
-const BATTLE_RULE_MIN_ATTACK = 2
-
-type BattleStrategy interface {
-	UpdateState(WarState)
-	GetDices() (Dices, error)
+type SimulationResult struct {
+	NRuns                  int
+	NAttackerWon           int
+	TotalAttackerUnitsLeft int
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Max attackers -> Always attack with maximum units, regardless of war state
-///////////////////////////////////////////////////////////////////////////////
+type SimulationSweep = map[int]map[int]SimulationResult
 
-type maxAttackers struct {
-	genDices DicesGenerator
-	state    WarState
+type BattleState struct {
+	AttackerUnits int
+	DefenderUnits int
 }
 
-func (m *maxAttackers) UpdateState(state WarState) {
-	m.state = state
-}
+type BattleStrategy = func() EngageStrategy
 
-func (m *maxAttackers) GetDices() (Dices, error) {
-	nUnits, err := getMaxAttackers(m.state.AttackerUnits)
-	if err != nil {
-		return nil, err
-	}
-	dices, err := m.genDices(nUnits)
-	if err != nil {
-		return nil, err
-	}
-	return dices, nil
-}
-
-func getMaxAttackers(units int) (int, error) {
-	if units < BATTLE_RULE_MIN_ATTACK {
-		return 0, fmt.Errorf("cannot attack with 1 unit")
-	} else if units > BATTLE_RULE_MAX_UNITS {
-		return BATTLE_RULE_MAX_UNITS, nil
-	} else {
-		return units - 1, nil
+func NewMaxAttackersStrategy(gen DicesGenerator) BattleStrategy {
+	return func() EngageStrategy {
+		return &maxAttackers{genDices: gen}
 	}
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Max defenders -> Always defend with maximum units
-///////////////////////////////////////////////////////////////////////////////
-
-type maxDefenders struct {
-	genDices DicesGenerator
-	state    WarState
-}
-
-func (m *maxDefenders) UpdateState(state WarState) {
-	m.state = state
-}
-
-func (m *maxDefenders) GetDices() (Dices, error) {
-	nUnits, err := getMaxDefenders(m.state.DefenderUnits)
-	if err != nil {
-		return nil, err
-	}
-	dices, err := m.genDices(nUnits)
-	if err != nil {
-		return nil, err
-	}
-	return dices, nil
-}
-
-func getMaxDefenders(availableDefenders int) (int, error) {
-	if availableDefenders <= 0 {
-		return 0, fmt.Errorf("cannot defend with 0 units")
-	} else if availableDefenders >= BATTLE_RULE_MAX_UNITS {
-		return BATTLE_RULE_MAX_UNITS, nil
-	} else {
-		return availableDefenders, nil
+func NewMaxDefendersStrategy(gen DicesGenerator) BattleStrategy {
+	return func() EngageStrategy {
+		return &maxDefenders{genDices: gen}
 	}
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Battle function
+func Battle(state BattleState, attacker BattleStrategy, defender BattleStrategy) (BattleState, error) {
+	att := attacker()
+	def := defender()
+	for state.AttackerUnits >= ENGAGE_RULE_MIN_ATTACK && state.DefenderUnits > 0 {
+		att.UpdateState(state)
+		def.UpdateState(state)
 
-func battle(attacker Dices, defender Dices) (int, int) {
-	attackerThrows := attacker.Roll()
-	defenderThrows := defender.Roll()
+		attackerThrows, err := att.GetDices()
+		if err != nil {
+			return BattleState{}, fmt.Errorf("oh no %v", err)
+		}
 
-	nCompare := defender.Count()
-	if attacker.Count() < defender.Count() {
-		nCompare = attacker.Count()
-	}
+		defenderThrows, err := def.GetDices()
+		if err != nil {
+			return BattleState{}, fmt.Errorf("oh no %v", err)
+		}
 
-	attackerLoss := 0
-	defenderLoss := 0
-	for i := range nCompare {
-		attDice := attackerThrows[i]
-		defDice := defenderThrows[i]
-		if attDice > defDice {
-			defenderLoss += 1
-		} else {
-			attackerLoss += 1
+		attackerLoss, defenderLoss := engage(attackerThrows, defenderThrows)
+		state = BattleState{
+			AttackerUnits: state.AttackerUnits - attackerLoss,
+			DefenderUnits: state.DefenderUnits - defenderLoss,
 		}
 	}
-	return attackerLoss, defenderLoss
+	return state, nil
+}
+
+func Simulate(ctx context.Context, nRuns int, nUnitsSweep int, attackerStrategy BattleStrategy, defenderStrategy BattleStrategy) (SimulationSweep, error) {
+	simsCount := 0
+	simResult := SimulationSweep{}
+	ch := make(chan []*BattleState)
+	chErr := make(chan error)
+	defer close(ch)
+	defer close(chErr)
+
+	go func() {
+		for nDefenders := 1; nDefenders <= nUnitsSweep; nDefenders++ {
+			for nAttackers := ENGAGE_RULE_MIN_ATTACK; nAttackers <= nUnitsSweep; nAttackers++ {
+				go func(nAtt int, nDef int) {
+					for i := 0; i < nRuns; i++ {
+						initialState := BattleState{
+							AttackerUnits: nAtt,
+							DefenderUnits: nDef,
+						}
+						finalState, err := Battle(initialState, attackerStrategy, defenderStrategy)
+						if finalState.AttackerUnits < 0 {
+							fmt.Printf("WOWOWOWO %v", finalState)
+						}
+						if err != nil {
+							chErr <- err
+						} else {
+							ch <- []*BattleState{&initialState, &finalState}
+						}
+					}
+				}(nAttackers, nDefenders)
+			}
+		}
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return simResult, nil
+		case err := <-chErr:
+			return nil, err
+		case simRun := <-ch:
+			// Prepare metrics
+			initialState := simRun[0]
+			finalState := simRun[1]
+			attackerWon := 0
+			if finalState.AttackerUnits >= ENGAGE_RULE_MIN_ATTACK {
+				// If the attacker is left with less units than what's needed to
+				// attack it means they ran out of attacks
+				attackerWon = 1
+			}
+
+			// Make sure object is mapped
+			if sas, ok := simResult[initialState.AttackerUnits]; !ok {
+				simResult[initialState.AttackerUnits] = map[int]SimulationResult{}
+				if _, ok := sas[initialState.DefenderUnits]; !ok {
+					simResult[initialState.AttackerUnits][initialState.DefenderUnits] = SimulationResult{
+						NRuns:                  0,
+						NAttackerWon:           0,
+						TotalAttackerUnitsLeft: 0,
+					}
+				}
+			}
+
+			simBatch := simResult[initialState.AttackerUnits][initialState.DefenderUnits]
+			simResult[initialState.AttackerUnits][initialState.DefenderUnits] = SimulationResult{
+				NRuns:                  simBatch.NRuns + 1,
+				NAttackerWon:           simBatch.NAttackerWon + attackerWon,
+				TotalAttackerUnitsLeft: simBatch.TotalAttackerUnitsLeft + finalState.AttackerUnits,
+			}
+
+			if finalState.AttackerUnits < 0 {
+				fmt.Printf("Whats going on %v -> %v", initialState, finalState)
+			}
+
+			simsCount++
+			if simsCount == nRuns*(nUnitsSweep-(ENGAGE_RULE_MIN_ATTACK-1))*nUnitsSweep {
+				return simResult, nil
+			}
+		}
+	}
 }

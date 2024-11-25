@@ -63,7 +63,7 @@ func generateCSVTables(simResult risiko.SimulationSweep, unitsSweep int) {
 		expectedAttackersLeftRow := []string{strconv.Itoa(nDefenders)} // First column: nDefenderUnits
 
 		// Iterate over attacker units (columns)
-		for nAttackers := risiko.BATTLE_RULE_MIN_ATTACK; nAttackers <= unitsSweep; nAttackers++ {
+		for nAttackers := risiko.ENGAGE_RULE_MIN_ATTACK; nAttackers <= unitsSweep; nAttackers++ {
 			result := simResult[nAttackers][nDefenders]
 
 			// Calculate the victory percentage for the attacker
