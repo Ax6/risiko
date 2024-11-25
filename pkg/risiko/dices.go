@@ -3,7 +3,6 @@ package risiko
 import (
 	"fmt"
 	"math/rand"
-	"slices"
 )
 
 type Dices interface {
@@ -31,8 +30,6 @@ func (f *fairDices) Roll() []int {
 	for i := 0; i < f.nDices; i++ {
 		res = append(res, f.random.Intn(6)+1)
 	}
-	slices.Sort(res)
-	slices.Reverse(res)
 	return res
 }
 

@@ -1,6 +1,9 @@
 package risiko
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 const ENGAGE_RULE_MAX_UNITS = 3
 const ENGAGE_RULE_MIN_ATTACK = 2
@@ -83,15 +86,25 @@ func getMaxDefenders(availableDefenders int) (int, error) {
 ///////////////////////////////////////////////////////////////////////////////
 // Engage function
 
+// Rolls the dices used by the attacker and the defender and compares results to
+// establish units lost per side. Returns attacker loss followed by defender
+// loss.
 func engage(attacker Dices, defender Dices) (int, int) {
+	// Roll
 	attackerThrows := attacker.Roll()
 	defenderThrows := defender.Roll()
 
+	// Prepare throws for comparison
+	slices.Sort(attackerThrows)
+	slices.Sort(defenderThrows)
+	slices.Reverse(attackerThrows)
+	slices.Reverse(defenderThrows)
 	nCompare := defender.Count()
 	if attacker.Count() < defender.Count() {
 		nCompare = attacker.Count()
 	}
 
+	// Compare
 	attackerLoss := 0
 	defenderLoss := 0
 	for i := range nCompare {
