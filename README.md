@@ -1,8 +1,8 @@
-# Risk
+# RisiKo!
 
-This is a little Risk game that simulates battles between two players.
+This is a little RisiKo game that simulates battles between two players.
 
-It's inspired by this reddit post https://www.reddit.com/gallery/1gyrpx4 (which is wrong btw).
+It's inspired by this reddit post https://www.reddit.com/gallery/1gyrpx4 which looks at Risk (different rules).
 
 Rows are the number of defending armies, columns are the number of attacking armies.
 

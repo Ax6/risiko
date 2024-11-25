@@ -74,7 +74,7 @@ func TestWarEssentials(t *testing.T) {
 				DefenderUnits: 2,
 			},
 			want: WarState{
-				AttackerUnits: 0,
+				AttackerUnits: 1,
 				DefenderUnits: 2,
 			},
 		},

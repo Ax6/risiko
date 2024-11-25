@@ -26,18 +26,20 @@ func TestMaxAttackersStrategy(t *testing.T) {
 	testCases := []struct {
 		state     WarState
 		wantDices int
+		wantErr   bool
 	}{
 		{
 			state:     WarState{AttackerUnits: 1},
-			wantDices: 1,
+			wantDices: 0,
+			wantErr:   true,
 		},
 		{
 			state:     WarState{AttackerUnits: 2},
-			wantDices: 2,
+			wantDices: 1,
 		},
 		{
 			state:     WarState{AttackerUnits: 3},
-			wantDices: 3,
+			wantDices: 2,
 		},
 		{
 			state:     WarState{AttackerUnits: 4},
@@ -53,7 +55,9 @@ func TestMaxAttackersStrategy(t *testing.T) {
 		t.Run(fmt.Sprintf("%d attackers", tc.state.AttackerUnits), func(t *testing.T) {
 			strategy.UpdateState(tc.state)
 			dices, err := strategy.GetDices()
-			if err != nil {
+			if err != nil && tc.wantErr {
+				return
+			} else if err != nil {
 				t.Errorf("Expected no error")
 			}
 			if dices.Count() != tc.wantDices {
@@ -71,38 +75,33 @@ func TestMaxDefendersStrategy(t *testing.T) {
 	}{
 		{
 			state: WarState{
-				AttackerUnits: 1,
-				DefenderUnits: 3,
+				DefenderUnits: 1,
 			},
 			wantDices: 1,
 		},
 		{
 			state: WarState{
-				AttackerUnits: 2,
-				DefenderUnits: 3,
+				DefenderUnits: 2,
 			},
 			wantDices: 2,
 		},
 		{
 			state: WarState{
-				AttackerUnits: 3,
 				DefenderUnits: 3,
 			},
 			wantDices: 3,
 		},
 		{
 			state: WarState{
-				AttackerUnits: 4,
-				DefenderUnits: 3,
+				DefenderUnits: 4,
 			},
 			wantDices: 3,
 		},
 		{
 			state: WarState{
-				AttackerUnits: 1000,
-				DefenderUnits: 1,
+				DefenderUnits: 1000,
 			},
-			wantDices: 1,
+			wantDices: 3,
 		},
 	}
 

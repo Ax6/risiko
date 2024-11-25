@@ -3,6 +3,7 @@ package risk
 import "fmt"
 
 const BATTLE_RULE_MAX_UNITS = 3
+const BATTLE_RULE_MIN_ATTACK = 2
 
 type BattleStrategy interface {
 	UpdateState(WarState)
@@ -35,12 +36,12 @@ func (m *maxAttackers) GetDices() (Dices, error) {
 }
 
 func getMaxAttackers(units int) (int, error) {
-	if units < 0 {
-		return 0, fmt.Errorf("cannot have negative units")
-	} else if units >= BATTLE_RULE_MAX_UNITS {
+	if units < BATTLE_RULE_MIN_ATTACK {
+		return 0, fmt.Errorf("cannot attack with 1 unit")
+	} else if units > BATTLE_RULE_MAX_UNITS {
 		return BATTLE_RULE_MAX_UNITS, nil
 	} else {
-		return units, nil
+		return units - 1, nil
 	}
 }
 
@@ -58,7 +59,7 @@ func (m *maxDefenders) UpdateState(state WarState) {
 }
 
 func (m *maxDefenders) GetDices() (Dices, error) {
-	nUnits, err := getMaxDefenders(m.state.DefenderUnits, m.state.AttackerUnits)
+	nUnits, err := getMaxDefenders(m.state.DefenderUnits)
 	if err != nil {
 		return nil, err
 	}
@@ -69,11 +70,11 @@ func (m *maxDefenders) GetDices() (Dices, error) {
 	return dices, nil
 }
 
-func getMaxDefenders(availableDefenders int, attackers int) (int, error) {
-	if availableDefenders < 0 {
-		return 0, fmt.Errorf("cannot have negative units")
-	} else if availableDefenders >= attackers {
-		return attackers, nil
+func getMaxDefenders(availableDefenders int) (int, error) {
+	if availableDefenders <= 0 {
+		return 0, fmt.Errorf("cannot defend with 0 units")
+	} else if availableDefenders >= BATTLE_RULE_MAX_UNITS {
+		return BATTLE_RULE_MAX_UNITS, nil
 	} else {
 		return availableDefenders, nil
 	}

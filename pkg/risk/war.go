@@ -36,7 +36,7 @@ func NewMaxDefendersStrategy(gen DicesGenerator) WarStrategy {
 func War(state WarState, attacker WarStrategy, defender WarStrategy) (WarState, error) {
 	att := attacker()
 	def := defender()
-	for state.AttackerUnits > 0 && state.DefenderUnits > 0 {
+	for state.AttackerUnits >= BATTLE_RULE_MIN_ATTACK && state.DefenderUnits > 0 {
 		att.UpdateState(state)
 		def.UpdateState(state)
 
@@ -102,7 +102,9 @@ func Simulate(ctx context.Context, nRuns int, nUnitsSweep int, attackerStrategy 
 			initialState := simRun[0]
 			finalState := simRun[1]
 			attackerWon := 0
-			if finalState.AttackerUnits > 0 {
+			if finalState.AttackerUnits >= BATTLE_RULE_MIN_ATTACK {
+				// If the attacker is left with less units than what's needed to
+				// attack it means they ran out of attacks
 				attackerWon = 1
 			}
 
