@@ -8,7 +8,7 @@ import (
 	"os"
 	"strconv"
 
-	risk "github.com/Ax6/risk/pkg/risk"
+	"github.com/Ax6/risiko/pkg/risiko"
 )
 
 func saveCSV(filename string, header []string, data [][]string) error {
@@ -44,7 +44,7 @@ func saveCSV(filename string, header []string, data [][]string) error {
 	return nil
 }
 
-func generateCSVTables(simResult risk.SimulationSweep, unitsSweep int) {
+func generateCSVTables(simResult risiko.SimulationSweep, unitsSweep int) {
 	// Initialize slices to store the data for the two tables
 	var victoryTable [][]string
 	var attackersLeftTable [][]string
@@ -105,12 +105,12 @@ func main() {
 	// Sample parameters
 	nRuns := 10000
 	unitsSweep := 20
-	attacker := risk.NewMaxAttackersStrategy(risk.FairDicesGen)
-	defender := risk.NewMaxDefendersStrategy(risk.FairDicesGen)
+	attacker := risiko.NewMaxAttackersStrategy(risiko.FairDicesGen)
+	defender := risiko.NewMaxDefendersStrategy(risiko.FairDicesGen)
 	log.Println("Starting simulation....")
 
 	// Simulate and get the results
-	simResult, err := risk.Simulate(ctx, nRuns, unitsSweep, attacker, defender)
+	simResult, err := risiko.Simulate(ctx, nRuns, unitsSweep, attacker, defender)
 	if err != nil {
 		log.Fatalf("Error in simulation: %v", err)
 	}

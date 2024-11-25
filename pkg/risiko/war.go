@@ -1,5 +1,5 @@
 // Rules of risk:
-package risk
+package risiko
 
 import (
 	"context"
