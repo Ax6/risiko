@@ -69,7 +69,7 @@ func Simulate(ctx context.Context, nRuns int, nUnitsSweep int, attackerStrategy 
 
 	go func() {
 		for nDefenders := 1; nDefenders <= nUnitsSweep; nDefenders++ {
-			for nAttackers := 1; nAttackers <= nUnitsSweep; nAttackers++ {
+			for nAttackers := BATTLE_RULE_MIN_ATTACK; nAttackers <= nUnitsSweep; nAttackers++ {
 				go func(nAtt int, nDef int) {
 					for i := 0; i < nRuns; i++ {
 						initialState := WarState{
@@ -132,7 +132,7 @@ func Simulate(ctx context.Context, nRuns int, nUnitsSweep int, attackerStrategy 
 			}
 
 			simsCount++
-			if simsCount == nRuns*nUnitsSweep*nUnitsSweep {
+			if simsCount == nRuns*(nUnitsSweep-(BATTLE_RULE_MIN_ATTACK-1))*nUnitsSweep {
 				return simResult, nil
 			}
 		}

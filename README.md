@@ -15,6 +15,6 @@ Red = Attacker wins most of the times, Blue = Defender wins most of the times
 
 ![Expected Units Left](resources/expected_units_left.png)
 
-## Average % of units left when attacker wins
+## Average units left when attacker wins
 
 ![Units Left](resources/units_left.png)

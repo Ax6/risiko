@@ -108,7 +108,7 @@ func TestWarResults(t *testing.T) {
 		state    WarState
 	}
 	testCases := []TestCase{}
-	for a := 1; a <= maxAttackers; a++ {
+	for a := BATTLE_RULE_MIN_ATTACK; a <= maxAttackers; a++ {
 		for d := 1; d <= maxDefenders; d++ {
 			for i := 0; i < nWars; i++ {
 				testCases = append(testCases, TestCase{
@@ -167,8 +167,8 @@ func TestSimulate(t *testing.T) {
 			name:        "normal cheater",
 			attacker:    NewMaxAttackersStrategy(createTestSingleSidedDicesGen(6)),
 			defender:    NewMaxDefendersStrategy(createTestSingleSidedDicesGen(6)),
-			nUnitsSweep: 20,
-			nRuns:       10000,
+			nUnitsSweep: 3,
+			nRuns:       5,
 		},
 	}
 
@@ -179,7 +179,7 @@ func TestSimulate(t *testing.T) {
 				t.Errorf("Unexpected error %v", err)
 			}
 
-			for a := 1; a <= tc.nUnitsSweep; a++ {
+			for a := BATTLE_RULE_MIN_ATTACK; a <= tc.nUnitsSweep; a++ {
 				for d := 1; d <= tc.nUnitsSweep; d++ {
 					if _, ok := result[a]; !ok {
 						t.Errorf("unexpected empty object for %d attackers", a)

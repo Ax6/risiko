@@ -63,16 +63,16 @@ func generateCSVTables(simResult risiko.SimulationSweep, unitsSweep int) {
 		expectedAttackersLeftRow := []string{strconv.Itoa(nDefenders)} // First column: nDefenderUnits
 
 		// Iterate over attacker units (columns)
-		for nAttackers := 1; nAttackers <= unitsSweep; nAttackers++ {
+		for nAttackers := risiko.BATTLE_RULE_MIN_ATTACK; nAttackers <= unitsSweep; nAttackers++ {
 			result := simResult[nAttackers][nDefenders]
 
 			// Calculate the victory percentage for the attacker
 			victoryPercentage := float64(result.NAttackerWon) / float64(result.NRuns)
 			victoryRow = append(victoryRow, fmt.Sprintf("%.6f", victoryPercentage))
 
-			// Calculate the percentage of attackers left
-			attackersLeftPercentage := float64(result.TotalAttackerUnitsLeft) / float64(nAttackers*result.NAttackerWon)
-			attackersLeftRow = append(attackersLeftRow, fmt.Sprintf("%.6f", attackersLeftPercentage))
+			// Calculate units left when won
+			attackersLeftCount := float64(result.TotalAttackerUnitsLeft-(result.NRuns-result.NAttackerWon)) / float64(result.NAttackerWon)
+			attackersLeftRow = append(attackersLeftRow, fmt.Sprintf("%.6f", attackersLeftCount))
 
 			// Calculate the percentage of expected attackers left
 			expectedAttackersLeftPercentage := float64(result.TotalAttackerUnitsLeft) / float64(nAttackers*result.NRuns)
@@ -88,7 +88,7 @@ func generateCSVTables(simResult risiko.SimulationSweep, unitsSweep int) {
 	if err := saveCSV("victory_percentage.csv", header, victoryTable); err != nil {
 		log.Fatalf("Error saving victory table: %v", err)
 	}
-	if err := saveCSV("attackers_left_percentage.csv", header, attackersLeftTable); err != nil {
+	if err := saveCSV("attackers_left.csv", header, attackersLeftTable); err != nil {
 		log.Fatalf("Error saving attackers left table: %v", err)
 	}
 	if err := saveCSV("expected_attackers_left_percentage.csv", header, expectedAttackersLeftTable); err != nil {
